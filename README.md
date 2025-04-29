@@ -1,4 +1,4 @@
-please define github action secrets:
+##please define github action secrets:
 
-  RDP_PASSWORD
-  TAILSCALE_AUTH_KEY
+###RDP_PASSWORD
+###TAILSCALE_AUTH_KEY
