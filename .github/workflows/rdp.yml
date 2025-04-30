@@ -38,7 +38,7 @@ jobs:
           # Enable NLA (match Ngrok script)
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
           # Set password
-          Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "${{ secrets.RDP_PASSWORD }}" -Force)
+          Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "${{ secrets.PASSWORD }}" -Force)
           # Verify RDP service
           $rdpService = Get-Service -Name TermService
           Write-Host "RDP Service Status: $($rdpService.Status)"
@@ -84,7 +84,7 @@ jobs:
           # Output RDP connection details
           Write-Host "RDP Connection: $tailscaleIp:3389"
           Write-Host "Username: runneradmin"
-          Write-Host "Password: ${{ secrets.RDP_PASSWORD }}"
+          Write-Host "Password: ${{ secrets.PASSWORD }}"
           Write-Host "RDP Access: Use the above IP and port in Remote Desktop client"
           # Keep the job running for 6 hours
           Start-Sleep -Seconds 21600
