@@ -1,4 +1,4 @@
-name: CI Windows
+name: CI Windows 11 arm
 
 on: [workflow_dispatch]
 
