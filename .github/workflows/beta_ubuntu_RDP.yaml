@@ -123,6 +123,8 @@ jobs:
 
     - name: Setup tmate SSH Session
       uses: mxschmitt/action-tmate@v2
+      with:
+        detached: true
 
     - name: Keep Workflow Running
       run: sleep 21600
