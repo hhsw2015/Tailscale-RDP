@@ -63,9 +63,9 @@ jobs:
               Write-Error "Tailscale executable not found at $tailscaleExe"
               exit 1
           }
-          $authKey = "${{ secrets.TAILSCALE_AUTH_KEY }}"
+          $authKey = "${{ secrets.TS_AUTH_KEY }}"
           if (-not $authKey) {
-              Write-Error "TAILSCALE_AUTH_KEY is not set"
+              Write-Error "TS_AUTH_KEY is not set"
               exit 1
           }
           # Start Tailscale and authenticate using full path
