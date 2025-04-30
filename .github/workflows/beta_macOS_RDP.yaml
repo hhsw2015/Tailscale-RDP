@@ -56,5 +56,10 @@ jobs:
         echo "Password: (use PASSWORD from secrets)"
         echo "SSH Access: Use the above IP and port in an SSH client"
 
+    - name: Setup tmate SSH Session
+      uses: mxschmitt/action-tmate@v2
+      with:
+        detached: true
+
     - name: Keep Workflow Running
       run: sleep 21600
