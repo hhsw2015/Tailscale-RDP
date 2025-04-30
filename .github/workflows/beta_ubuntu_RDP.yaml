@@ -10,9 +10,11 @@ jobs:
     - name: Connect to Tailscale
       uses: tailscale/github-action@v3
       with:
-        oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-        oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-        tags: tag:ci
+        #oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+        #oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+        #tags: tag:ci
+        authkey: ${{ secrets.TS_AUTH_KEY }}
+        hostname: github-runner-${{ github.run_id }}
         version: latest
         use-cache: 'true'
 
@@ -98,6 +100,15 @@ jobs:
           echo "Tailscale executable not found in PATH" >&2
           exit 1
         fi
+        
+        sudo apt install -y jq
+        tailscale_hostname=$(tailscale status --json | jq -r '.Self.HostName')
+        if [ -z "$tailscale_hostname" ]; then
+          echo "Tailscale hostname not set" >&2
+          exit 1
+        fi
+        echo "Tailscale Hostname: $tailscale_hostname"
+    
         tailscale_ip=$(tailscale ip --4)
         if [ -z "$tailscale_ip" ]; then
           echo "Failed to retrieve Tailscale IP, connection may not be established" >&2
