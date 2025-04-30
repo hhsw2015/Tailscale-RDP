@@ -1,0 +1,58 @@
+name: CI [MacOS] beta
+
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - name: Connect to Tailscale
+      uses: tailscale/github-action@v3
+      with:
+        oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+        oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+        tags: tag:ci
+        version: latest
+        use-cache: 'true'
+
+    - name: Adding New User
+      env:
+        PASSWORD: ${{ secrets.PASSWORD }}
+      run: |
+        if [ -z "$PASSWORD" ]; then
+          echo "PASSWORD is not set" >&2
+          exit 1
+        fi
+        sudo dscl . -create /Users/runneradmin
+        sudo dscl . -create /Users/runneradmin UserShell /bin/bash
+        sudo dscl . -create /Users/runneradmin RealName "Runner Admin"
+        sudo dscl . -create /Users/runneradmin UniqueID 510
+        sudo dscl . -create /Users/runneradmin PrimaryGroupID 20
+        sudo dscl . -create /Users/runneradmin NFSHomeDirectory /Users/runneradmin
+        sudo dscl . -passwd /Users/runneradmin "$PASSWORD"
+        sudo dscl . -append /Groups/admin GroupMembership runneradmin
+        sudo createhomedir -c -u runneradmin > /dev/null
+
+    - name: Output Tailscale Connection Details
+      env:
+        PASSWORD: ${{ secrets.PASSWORD }}
+      run: |
+        if ! command -v tailscale >/dev/null 2>&1; then
+          echo "Tailscale executable not found in PATH" >&2
+          exit 1
+        fi
+        tailscale_ip=$(tailscale ip --4)
+        if [ -z "$tailscale_ip" ]; then
+          echo "Failed to retrieve Tailscale IP, connection may not be established" >&2
+          exit 1
+        fi
+        tailscale_status=$(tailscale status)
+        echo "Tailscale status: $tailscale_status"
+        echo "SSH Connection: $tailscale_ip:22"
+        echo "Username: runneradmin"
+        echo "Password: (use PASSWORD from secrets)"
+        echo "SSH Access: Use the above IP and port in an SSH client"
+
+    - name: Keep Workflow Running
+      run: sleep 21600

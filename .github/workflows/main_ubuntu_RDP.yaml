@@ -1,0 +1,122 @@
+name: CI [Ubuntu]
+
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Connect to Tailscale
+      uses: tailscale/github-action@v3
+      with:
+        oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+        oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+        tags: tag:ci
+        version: latest
+        use-cache: 'true'
+
+    - name: Adding Architecture amd64
+      run: |
+        sudo apt update
+        sudo apt install -y qemu-user-static binfmt-support
+        sudo dpkg --add-architecture amd64
+        sudo apt update
+        sudo apt install -y libc6:amd64
+
+    - name: Creating New User
+      env:
+        PASSWORD: ${{ secrets.PASSWORD }}
+      run: |
+        user=runneradmin
+        if [ -z "$PASSWORD" ]; then
+          echo "PASSWORD is not set" >&2
+          exit 1
+        fi
+        sudo adduser --quiet --disabled-password --shell /bin/bash --home /home/$user --gecos "User" $user
+        echo "$user:$PASSWORD" | sudo chpasswd
+        echo User: $user has been created
+        sudo usermod -aG sudo $user
+
+    - name: Install Libraries
+      run: |
+        sudo add-apt-repository main
+        sudo add-apt-repository universe
+        sudo add-apt-repository restricted
+        sudo add-apt-repository multiverse
+        sudo apt update
+        sudo apt install -y unzip snapd openssh-server ubuntu-desktop xorg xrdp xorgxrdp xserver-xorg-core xserver-xorg-input-all xfonts-base xfonts-75dpi xfonts-100dpi mate-core mate-desktop-environment mate-notification-daemon ubuntu-gnome-desktop gnome-session-flashback gnome-panel xfce4 xfce4-goodies
+        sudo systemctl enable ssh
+        sudo systemctl start ssh
+        sudo apt-get autoremove -y
+
+    - name: Configure Polkit
+      run: |
+        sudo bash -c 'cat > /etc/polkit-1/localauthority.conf.d/02-allow-colord.conf' << EOF
+        polkit.addRule(function(action, subject) {
+          if ((action.id == "org.freedesktop.color-manager.create-device" ||
+               action.id == "org.freedesktop.color-manager.create-profile" ||
+               action.id == "org.freedesktop.color-manager.delete-device" ||
+               action.id == "org.freedesktop.color-manager.delete-profile" ||
+               action.id == "org.freedesktop.color-manager.modify-device" ||
+               action.id == "org.freedesktop.color-manager.modify-profile") &&
+              subject.isInGroup("{users}")) {
+            return polkit.Result.YES;
+          }
+        });
+        EOF
+
+    - name: Config RDP in Ubuntu (XRDP)
+      run: |
+        sudo ufw allow 3389/tcp
+        if [ -f /home/${USER}/.xsession ]; then
+          rm -f /home/${USER}/.xsession
+        fi
+        cat << 'EOF' >> /home/${USER}/.xsession
+        export LOGNAME=$USER
+        export LIBGL_ALWAYS_INDIRECT=1
+        unset SESSION_MANAGER
+        unset DBUS_SESSION_BUS_ADDRESS
+        mate-session
+        EOF
+        chmod +x /home/${USER}/.xsession
+
+    - name: Run Bash
+      run: sudo sed -i "s|#\!/bin/sh|#\!/bin/bash|g" /etc/X11/Xsession
+
+    - name: Starting XRDP
+      run: |
+        sudo adduser xrdp ssl-cert
+        sudo service xrdp restart
+        sudo service xrdp status
+
+    - name: Config XRDP
+      run: |
+        sudo apt install -y nano
+        echo `cat /etc/xrdp/xrdp.ini`
+
+    - name: Output Tailscale Connection Details
+      env:
+        PASSWORD: ${{ secrets.PASSWORD }}
+      run: |
+        if ! command -v tailscale >/dev/null 2>&1; then
+          echo "Tailscale executable not found in PATH" >&2
+          exit 1
+        fi
+        tailscale_ip=$(tailscale ip --4)
+        if [ -z "$tailscale_ip" ]; then
+          echo "Failed to retrieve Tailscale IP, connection may not be established" >&2
+          exit 1
+        fi
+        tailscale_status=$(tailscale status)
+        echo "Tailscale status: $tailscale_status"
+        echo "RDP Connection: $tailscale_ip:3389"
+        echo "Username: runneradmin"
+        echo "Password: (use PASSWORD from secrets)"
+        echo "RDP Access: Use the above IP and port in Remote Desktop client"
+
+    - name: Setup tmate SSH Session
+      uses: mxschmitt/action-tmate@v2
+
+    - name: Keep Workflow Running
+      run: sleep 21600
